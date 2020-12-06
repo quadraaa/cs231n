@@ -56,6 +56,13 @@ class LinearClassifier(object):
             # replacement is faster than sampling without replacement.              #
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+            #np.random.seed(0)
+            #mask = np.random.choice(num_training, num_dev, replace=False)
+            idx = np.random.randint(X.shape[0], size=batch_size)
+            #print(idx[:10])
+            X_batch = X[idx,:]
+            y_batch = y[idx]
+            
 
             pass
 
@@ -73,6 +80,7 @@ class LinearClassifier(object):
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
             pass
+            self.W -= grad * learning_rate
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -103,6 +111,12 @@ class LinearClassifier(object):
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         pass
+        #print(X.shape)
+        #print(np.dot(X, self.W).shape)
+        y_pred = np.argmax(np.dot(X, self.W), axis=1)
+        #print(y_pred.shape)
+        #print(y_pred[0:3])
+    
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         return y_pred

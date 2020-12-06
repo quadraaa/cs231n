@@ -81,6 +81,16 @@ class TwoLayerNet(object):
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         pass
+        
+        l1_output = (np.dot(X, self.params['W1']) + self.params['b1']).clip(min=0) # (N, hidden_size)
+        scores = np.dot(l1_output, self.params['W2']) + self.params['b2'] # (N, output_size)
+        
+        w1_out = np.dot(X, self.params['W1'])
+        l1_lin = w1_out + self.params['b1']
+        l1_relu = np.maximum(l1_lin, 0)
+        w2_out = np.dot(l1_relu, self.params['W2'])
+        l2_lin = w2_out + self.params['b2']
+        scores = l2_lin.copy()
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -100,6 +110,51 @@ class TwoLayerNet(object):
 
         pass
 
+        def softmax_forward(x):
+            x = x - np.max(x, axis=1).reshape(-1,1) # (N, C)
+            exps = np.exp(x)
+            
+            sexps = np.sum(exps, axis=1).reshape(-1,1)
+            divexps = (1/sexps).reshape(-1,1)
+            mul = exps * divexps
+            return mul, {"exps":exps, "sexps":sexps, "divexps":divexps}
+
+        def softmax_backward(dout, cache):
+            softmax_grad = {}
+
+            dexps_0 = cache["divexps"] * dout
+            softmax_grad["dexps_0"] = dexps_0
+
+            ddivexps = np.sum(cache["exps"] * dout, axis=1).reshape(-1,1)
+            softmax_grad["ddivexps"] = ddivexps
+
+            dsexps = -1.0/(cache["sexps"]**2) * ddivexps
+            softmax_grad["dsexps"] = dsexps
+
+            # dexps_1 = dsexps/(np.sum(cache["exps"], axis=1).reshape(-1,1))*cache["exps"]
+            dexps_1 = dsexps * np.ones(dout.shape)
+            softmax_grad["dexps_1"] = dexps_1
+
+            dexps = dexps_0 + dexps_1
+            softmax_grad["dexps"] = dexps
+
+            dx = cache["exps"] * (dexps)
+            softmax_grad["dx"] = dx
+
+            return softmax_grad
+
+        softmax, cache = softmax_forward(l2_lin)
+        select_pyi = softmax[range(X.shape[0]), y].reshape(-1,1)
+        #print(select_pyi)
+        neg_log = -np.log(select_pyi)
+        loss_data = np.mean(neg_log)
+        w1_l2 = np.sum(self.params['W1'] * self.params['W1'])
+        w2_l2 = np.sum(self.params['W2'] * self.params['W2'])
+        b1_l2 = np.sum(self.params['b1'] * self.params['b1'])
+        b2_l2 = np.sum(self.params['b2'] * self.params['b2'])
+        loss_reg = (w1_l2 + w2_l2 + b1_l2 + b2_l2) * reg
+        loss = loss_data + loss_reg
+
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         # Backward pass: compute gradients
@@ -112,6 +167,28 @@ class TwoLayerNet(object):
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         pass
+    
+        dout = 1
+        dloss_data = 1
+        dneg_log = np.ones(neg_log.shape)/neg_log.shape[0]
+        #print(dneg_log) #0.2
+        dselect_pyi = -1/select_pyi * dneg_log
+        #print(select_pyi)
+        #print(dselect_pyi)
+        dsoftmax_0 = np.zeros(softmax.shape)
+        np.add.at(dsoftmax_0,tuple([range(X.shape[0]), y]),1)
+        dsoftmax = dsoftmax_0 * dselect_pyi
+        #print(dsoftmax)
+        dl2_lin = softmax_backward(dsoftmax, cache)
+        grads['b2'] = np.sum(dl2_lin["dx"], axis=0) + 2 * reg * self.params['b2']
+        grads['W2'] = np.dot(l1_relu.T, dl2_lin["dx"]) + 2 * reg * self.params['W2']
+        dl1_relu = np.dot(dl2_lin["dx"], self.params['W2'].T)
+        dl1_lin = np.maximum(l1_lin, 0)
+        dl1_lin[dl1_lin > 0] = 1
+        dl1_lin *= dl1_relu
+        grads['b1'] = np.sum(dl1_lin, axis=0) + 2 * reg * self.params['b1']
+        grads['W1'] = np.dot(X.T, dl1_lin) + 2 * reg * self.params['W1']
+        
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -155,7 +232,10 @@ class TwoLayerNet(object):
             # them in X_batch and y_batch respectively.                             #
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+            
+            idx = np.random.randint(X.shape[0], size=batch_size)
+            X_batch = X[idx,:]
+            y_batch = y[idx]
             pass
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -173,6 +253,10 @@ class TwoLayerNet(object):
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
             pass
+            self.params['b2'] -= grads["b2"] * learning_rate
+            self.params['W2'] -= grads["W2"] * learning_rate
+            self.params['b1'] -= grads["b1"] * learning_rate
+            self.params['W1'] -= grads["W1"] * learning_rate
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -217,8 +301,16 @@ class TwoLayerNet(object):
         # TODO: Implement this function; it should be VERY simple!                #
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        l1_output = (np.dot(X, self.params['W1']) + self.params['b1']).clip(min=0) # (N, hidden_size)
+        scores = np.dot(l1_output, self.params['W2']) + self.params['b2'] # (N, output_size)
+        
+        w1_out = np.dot(X, self.params['W1'])
+        l1_lin = w1_out + self.params['b1']
+        l1_relu = np.maximum(l1_lin, 0)
+        w2_out = np.dot(l1_relu, self.params['W2'])
+        l2_lin = w2_out + self.params['b2']
 
-        pass
+        y_pred = np.argmax(l2_lin, axis=1)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
