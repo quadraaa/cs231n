@@ -206,6 +206,43 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         pass
+        # sample_mean = np.mean(x, axis=0)
+        # sample_var = np.var(x, axis=0)
+        # x = (x - sample_mean)/(np.sqrt(sample_var) + eps)
+        # out = x * gamma + beta
+        
+        x_avg = np.mean(x, axis=0)
+        x_sqwrd = x**2
+        x_avg_sqwrd = x_avg**2
+        x_sqwrd_avg = np.mean(x_sqwrd, axis=0)
+        v = x_sqwrd_avg - x_avg_sqwrd
+        v_shifted = v + eps
+        denom = np.sqrt(v_shifted)
+        x_cntrd = x - x_avg
+        x_stndrd = x_cntrd/denom
+        x_strchd = x_stndrd * gamma
+        x_rstrd = x_strchd + beta
+        cache = {"x": x,
+                "x_avg":x_avg,
+                "x_sqwrd":x_sqwrd,
+                "x_avg_sqwrd":x_avg_sqwrd,
+                "x_sqwrd_avg":x_sqwrd_avg,
+                "v":v,
+                "v_shifted":v_shifted,
+                "denom":denom,
+                "x_cntrd":x_cntrd,
+                "x_stndrd":x_stndrd,
+                "x_strchd":x_strchd,
+                "x_rstrd":x_rstrd,
+                 "gamma":gamma,
+                 "beta":beta
+                }
+        out = x_rstrd
+
+
+
+        running_mean = running_mean * momentum + x_avg * (1 - momentum)
+        running_var = running_var * momentum + v * (1 - momentum)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -221,6 +258,8 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         pass
+        x = (x - running_mean)/(np.sqrt(running_var) + eps)
+        out = x * gamma + beta
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -262,7 +301,21 @@ def batchnorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    dbeta = np.sum(dout, axis=0)
+    dx_strchd = dout
+    dgamma = np.sum(dx_strchd * cache["x_stndrd"], axis=0)
+    dx_stndrd = dx_strchd * cache["gamma"]
+    dx_cntrd = dx_stndrd * (1/cache["denom"])
+    ddenom = np.sum(dx_stndrd * (-1*cache["x_cntrd"]*cache["denom"]**(-2)), axis=0)
+    dv_shifted = ddenom * (0.5*(cache["v_shifted"]**(-0.5)))
+    dv = dv_shifted
+    dx_avg_sqwrd = -1 * dv
+    dx_avg = dx_avg_sqwrd * 2 * cache["x_avg"] + np.sum(dx_cntrd * (-1), axis = 0)
+    dx_sqwrd_avg = dv
+    dx_sqwrd = dx_sqwrd_avg * np.ones(cache["x_sqwrd"].shape)/cache["x_sqwrd"].shape[0]
+    dx = dx_sqwrd * 2 * cache["x"] + \
+         dx_avg * np.ones(cache["x"].shape)/cache["x"].shape[0] + \
+         dx_cntrd
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -344,6 +397,36 @@ def layernorm_forward(x, gamma, beta, ln_param):
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
     pass
+    x = x.T
+    x_avg = np.mean(x, axis=0)
+    x_sqwrd = x**2
+    x_avg_sqwrd = x_avg**2
+    x_sqwrd_avg = np.mean(x_sqwrd, axis=0)
+    v = x_sqwrd_avg - x_avg_sqwrd
+    v_shifted = v + eps
+    denom = np.sqrt(v_shifted)
+    x_cntrd = x - x_avg
+    x_stndrd = x_cntrd/denom
+    #.reshape(-1,1)
+    x_stndrd = x_stndrd.T
+    x_strchd = x_stndrd * gamma
+    x_rstrd = x_strchd + beta
+    cache = {"x": x,
+            "x_avg":x_avg,
+            "x_sqwrd":x_sqwrd,
+            "x_avg_sqwrd":x_avg_sqwrd,
+            "x_sqwrd_avg":x_sqwrd_avg,
+            "v":v,
+            "v_shifted":v_shifted,
+            "denom":denom,
+            "x_cntrd":x_cntrd,
+            "x_stndrd":x_stndrd,
+            "x_strchd":x_strchd,
+            "x_rstrd":x_rstrd,
+             "gamma":gamma,
+             "beta":beta
+            }
+    out = x_rstrd
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -379,6 +462,22 @@ def layernorm_backward(dout, cache):
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
     pass
+    dbeta = np.sum(dout, axis=0)
+    dx_strchd = dout
+    dgamma = np.sum(dx_strchd * cache["x_stndrd"], axis=0)
+    dx_stndrd = (dx_strchd * cache["gamma"]).T
+    dx_cntrd = dx_stndrd * (1/cache["denom"])
+    ddenom = np.sum(dx_stndrd * (-1*cache["x_cntrd"]*cache["denom"]**(-2)), axis=0)
+    dv_shifted = ddenom * (0.5*(cache["v_shifted"]**(-0.5)))
+    dv = dv_shifted
+    dx_avg_sqwrd = -1 * dv
+    dx_avg = dx_avg_sqwrd * 2 * cache["x_avg"] + np.sum(dx_cntrd * (-1), axis = 0)
+    dx_sqwrd_avg = dv
+    dx_sqwrd = dx_sqwrd_avg * np.ones(cache["x_sqwrd"].shape)/cache["x_sqwrd"].shape[0]
+    dx = dx_sqwrd * 2 * cache["x"] + \
+         dx_avg * np.ones(cache["x"].shape)/cache["x"].shape[0] + \
+         dx_cntrd
+    dx = dx.T
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
