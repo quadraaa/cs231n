@@ -307,10 +307,15 @@ class FullyConnectedNet(object):
                 gamma = self.params["gamma{}".format(i)]
                 beta = self.params["beta{}".format(i)]
                 bn_par = self.bn_params[i-1]
-                
-                out, cache[i] = affine_bn_relu_forward(out, w, b, gamma, beta, bn_par)
+                if self.use_dropout:
+                    out, cache[i] = affine_bn_relu_drop_forward(out, w, b, gamma, beta, bn_par, self.dropout_param)
+                else:
+                    out, cache[i] = affine_bn_relu_forward(out, w, b, gamma, beta, bn_par)
             else:
-                out, cache[i] = affine_relu_forward(out, w, b)
+                if self.use_dropout:
+                    out, cache[i] = affine_relu_drop_forward(out, w, b, self.dropout_param)
+                else:
+                    out, cache[i] = affine_relu_forward(out, w, b)
         
         w = self.params["W{}".format(i + 1)]
         b = self.params["b{}".format(i + 1)]
@@ -356,10 +361,17 @@ class FullyConnectedNet(object):
         for i in range(self.num_layers-1, 0, -1):
             #print("W{}".format(i))
             if self.normalization == "batchnorm":
-                dout, grads["W{}".format(i)], grads["b{}".format(i)], \
-                grads["gamma{}".format(i)], grads["beta{}".format(i)] = affine_bn_relu_backward(dout, cache[i])
+                if self.use_dropout:
+                    dout, grads["W{}".format(i)], grads["b{}".format(i)], \
+                    grads["gamma{}".format(i)], grads["beta{}".format(i)] = affine_bn_relu_drop_backward(dout, cache[i])
+                else:
+                    dout, grads["W{}".format(i)], grads["b{}".format(i)], \
+                    grads["gamma{}".format(i)], grads["beta{}".format(i)] = affine_bn_relu_backward(dout, cache[i])
             else:
-                dout, grads["W{}".format(i)], grads["b{}".format(i)] = affine_relu_backward(dout, cache[i])
+                if self.use_dropout:
+                    dout, grads["W{}".format(i)], grads["b{}".format(i)] = affine_relu_drop_backward(dout, cache[i])
+                else:
+                    dout, grads["W{}".format(i)], grads["b{}".format(i)] = affine_relu_backward(dout, cache[i])
             grads["W{}".format(i)] += self.params["W{}".format(i)] * self.reg
         
 

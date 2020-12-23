@@ -38,6 +38,32 @@ def affine_bn_relu_backward(dout, cache):
     dx, dw, db = affine_backward(dbn, fc_cache)
     return dx, dw, db, dgamma, dbeta
 
+
+
+def affine_bn_relu_drop_forward(x, w, b, gamma, beta, bn_param, dropout_param):
+    r, a_b_r_f_cache = affine_bn_relu_forward(x, w, b, gamma, beta, bn_param)
+    out, dropout_cache = dropout_forward(r, dropout_param)
+    cache = (*a_b_r_f_cache, dropout_cache)
+    return out, cache
+def affine_bn_relu_drop_backward(dout, cache):
+    fc_cache, bn_cache, relu_cache, dropout_cache = cache
+    dd = dropout_backward(dout, dropout_cache)
+    dx, dw, db, dgamma, dbeta = affine_bn_relu_backward(dd, (fc_cache, bn_cache, relu_cache))
+    return dx, dw, db, dgamma, dbeta
+
+def affine_relu_drop_forward(x, w, b, dropout_param):
+    r, a_r_f_cache = affine_relu_forward(x, w, b)
+    out, dropout_cache = dropout_forward(r, dropout_param)
+    cache = (*a_r_f_cache, dropout_cache)
+    return out, cache
+def affine_relu_drop_backward(dout, cache):
+    fc_cache, relu_cache, dropout_cache = cache
+    dd = dropout_backward(dout, dropout_cache)
+    dx, dw, db = affine_relu_backward(dd, (fc_cache, relu_cache))
+    return dx, dw, db
+
+
+
 def affine_relu_backward(dout, cache):
     """
     Backward pass for the affine-relu convenience layer
